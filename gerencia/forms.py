@@ -1,5 +1,7 @@
 from django import forms
-from .models import Noticia
+from .models import Noticia, Categoria
+from django.core.exceptions import ValidationError
+
 
 class NoticiaForm(forms.ModelForm):
     
@@ -17,9 +19,6 @@ class NoticiaForm(forms.ModelForm):
 
 
 
-from django import forms
-from .models import Categoria
-from usuarios.models import UserBlog  # Importe o modelo de usuário personalizado
 
 class NoticiaFilterForm(forms.Form):
     titulo = forms.CharField(
@@ -45,3 +44,20 @@ class NoticiaFilterForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-control'})
     )
   
+
+
+
+class CategoriaForm(forms.ModelForm):
+    class Meta:
+        model = Categoria
+        fields = '__all__'
+
+    def clean_nome(self):
+        nome = self.cleaned_data.get('nome')
+        if not nome:
+            raise ValidationError(' OBRIGATORIO')
+        
+        if Categoria.objects.filter(nome=nome).exists():
+            raise ValidationError('já existe uma categ com esse nome')
+        
+        return nome

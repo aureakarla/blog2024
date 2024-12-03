@@ -1,8 +1,9 @@
-from django.shortcuts import render,redirect
+from django.shortcuts import render,redirect, get_object_or_404
 from .forms import NoticiaForm, NoticiaFilterForm
 from django.contrib.auth.decorators import login_required
-from django.shortcuts import render
 from .models import Noticia, Categoria
+from .forms import CategoriaForm
+from django.core.paginator import Paginator
 
 # Create your views here.
 @login_required
@@ -12,7 +13,7 @@ def inicio_gerencia(request):
 def listagem_noticia(request):
     formularioFiltro = NoticiaFilterForm(request.GET or None)
     
-    noticias = Noticia.objects.filter(usuario=request.user)  # Filtra pelo usuário logado
+    noticias = Noticia.objects.filter(usuario=request.user)  
 
     if formularioFiltro.is_valid():
         if formularioFiltro.cleaned_data['titulo']:
@@ -35,10 +36,10 @@ def cadastrar_noticia(request):
     if request.method == 'POST':
         form = NoticiaForm(request.POST, request.FILES)
         if form.is_valid():
-            noticia = form.save(commit=False)  # Cria instância sem salvar
-            noticia.usuario = request.user  # Atribui o autor (usuário logado)
-            noticia.save()  # Salva a notícia no banco
-            return redirect('gerencia:listagem_noticia')  # Redireciona para página de sucesso
+            noticia = form.save(commit=False)  
+            noticia.usuario = request.user  
+            noticia.save()  
+            return redirect('gerencia:listagem_noticia')  
     else:
         form = NoticiaForm() 
 
@@ -51,9 +52,9 @@ def editar_noticia(request, id):
     if request.method == 'POST':
         form = NoticiaForm(request.POST, request.FILES, instance=noticia)
         if form.is_valid():
-            noticia_editada = form.save(commit=False)  # Não salva ainda
-            noticia_editada.usuario = request.user 
-            noticia_editada.save()  # Salva com o usuário intacto
+            noticia_editada = form.save(commit=False) 
+            noticia_editada.usuario = request.user
+            noticia_editada.save()  
             return redirect('gerencia:listagem_noticia')
     else:
         form = NoticiaForm(instance=noticia)
@@ -67,10 +68,10 @@ def editar_noticia(request, id):
 
 
 def index(request):
-    categoria_nome = request.GET.get('categoria')  # Obtém o parâmetro 'categoria' da URL
-    search_query = request.GET.get('search')  # Obtém o parâmetro de busca
+    categoria_nome = request.GET.get('categoria')  
+    search_query = request.GET.get('search')  
 
-    # Filtra as notícias com base na categoria ou na busca
+   
     noticias = Noticia.objects.all()
     if categoria_nome:
         categoria = Categoria.objects.filter(nome=categoria_nome).first()
@@ -78,9 +79,9 @@ def index(request):
             noticias = noticias.filter(categoria=categoria)
 
     if search_query:
-        noticias = noticias.filter(titulo__icontains=search_query)  # Filtra por título, ignorando maiúsculas/minúsculas
+        noticias = noticias.filter(titulo__icontains=search_query)  
 
-    categorias = Categoria.objects.all()  # Pega todas as categorias para exibir no template
+    categorias = Categoria.objects.all() 
 
     contexto = {
         'noticias': noticias,
@@ -89,3 +90,55 @@ def index(request):
         'search_query': search_query,
     }
     return render(request, 'gerencia/index.html', contexto)
+
+
+@login_required
+def listar_categ(request):
+    search_query = request.GET.get('search', '')
+
+    if search_query:
+        categorias = Categoria.objects.filter(nome__icontains=search_query).order_by('nome')
+    else:
+        categorias = Categoria.objects.all().order_by('nome')
+
+    paginator = Paginator(categorias, 10)  
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    contexto = {
+        'page_obj': page_obj,
+        'search_query': search_query,
+    }
+    return render(request, 'gerencia/listar_categ.html', contexto)
+
+    
+@login_required
+def criar_categ(request):
+    if request.method == 'POST':
+        form = CategoriaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('gerencia:listar_categ')
+    else:
+        form = CategoriaForm()
+    return render(request, 'gerencia/criar_categ.html', {'form': form})
+
+@login_required
+def editar_categ(request, id):
+    categoria = get_object_or_404(Categoria, id=id)
+    if request.method == 'POST':
+        form = CategoriaForm(request.POST, instance=categoria)
+        if form.is_valid():
+            form.save()
+            return redirect('gerencia:listar_categ')
+    else:
+        form = CategoriaForm(instance=categoria)
+    return render(request, 'gerencia/editar_categ.html', {'form': form})
+
+@login_required
+def deletar_categ(request, id):
+    categoria = get_object_or_404(Categoria, id=id)
+    if request.method == 'POST':
+        categoria.delete()
+        return redirect('gerencia:listar_categ')
+    return render(request, 'gerencia/deletar_categ.html', {'categoria': categoria})

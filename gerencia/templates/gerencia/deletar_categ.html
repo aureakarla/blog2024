@@ -1,0 +1,9 @@
+{% extends 'base_gerencia.html' %} {% block main %}
+<h2>Deletar Categoria</h2>
+<p>Tem certeza que deseja deletar a categoria "{{ categoria.nome }}"?</p>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit">Deletar</button>
+</form>
+<a href="{% url 'gerencia:listar_categ' %}">Cancelar</a>
+{% endblock %}
